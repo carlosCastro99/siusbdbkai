@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scanner de documentos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: utilitário, rápido, uma mão no telemóvel.
+   IDEA: mesa de reprodução — folha branca sobre tampo escuro, luz de cópia.
+   PICTURE: a pilha de páginas digitalizadas é a imagem; o botão de captura é o centro.
+   COLOUR and TYPE: tampo azul-tinta #0f1b2d, papel #f7f6f2, sinal coral #ff6f59; Inter Tight + Inter.
+   LAYOUT: captura no topo, grelha de páginas, exportação no fundo; editor em ecrã inteiro. */
+:root{color-scheme:light dark;--bg:light-dark(#eef1f5,#0b1422);--desk:#0f1b2d;--paper:#f7f6f2;--ink:light-dark(#0f1b2d,#e8edf4);--mut:light-dark(#5a6678,#93a1b5);--line:light-dark(#d5dbe4,#1f2d42);--card:light-dark(#fff,#13213a);--acc:#ff6f59;--ok:#2fbf8a}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2{font-family:"Inter Tight",Inter,sans-serif;margin:0;line-height:1.05}
+button,label.btn{font:inherit;font-weight:600;border:0;border-radius:12px;min-height:44px;padding:0 16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--card);color:var(--ink);border:1px solid var(--line)}
+button:focus-visible,label.btn:focus-within,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.pri{background:var(--acc)!important;color:#fff!important;border-color:transparent!important}
+.top{background:var(--desk);color:var(--paper);padding:20px max(4vw,16px) 24px}
+.top .row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.top h1{font-size:clamp(28px,6vw,40px)}
+.count{font-size:15px;color:#b8c4d6}
+.count b{color:var(--paper);font-size:22px;font-family:"Inter Tight"}
+#name{margin-top:14px;width:100%;font:500 16px Inter;padding:12px 14px;border-radius:12px;border:1px solid #2a3b55;background:#16263f;color:var(--paper)}
+.cap{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px;margin-top:14px}
+.shoot{min-height:96px!important;font-size:19px!important;border-radius:18px!important;flex-direction:column;gap:6px!important}
+.shoot svg{width:30px;height:30px}
+.gal{min-height:96px!important;border-radius:18px!important;background:#16263f!important;color:var(--paper)!important;border-color:#2a3b55!important;flex-direction:column;font-size:15px}
+.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:14px;background:#16263f;border:1px solid #2a3b55;border-radius:14px;padding:4px}
+.modes button{background:none!important;border:0!important;color:#c9d3e2!important;font-size:14px;padding:0 6px;border-radius:10px!important}
+.modes button[aria-checked=true]{background:var(--paper)!important;color:var(--desk)!important}
+.hint{margin:8px 2px 0;font-size:14px;color:#b8c4d6}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+main{padding:20px max(4vw,16px) 40px;max-width:1240px;margin:0 auto}
+.sec{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:4px 0 12px}
+.sec h2{font-size:22px}.sec span{color:var(--mut);font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
+.pg{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.pg .im{aspect-ratio:3/4;background:#dfe3ea;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;padding:8px}
+.pg img{max-width:100%;max-height:100%;box-shadow:0 2px 8px rgba(0,0,0,.25);background:#fff}
+.pg .n{position:absolute;top:6px;left:6px;background:var(--desk);color:#fff;font:600 13px Inter;border-radius:8px;padding:2px 8px}
+.pg .bar{display:flex}
+.pg .bar button{flex:1;border-radius:0;border:0;border-top:1px solid var(--line);min-height:44px;padding:0;font-size:18px;background:none}
+.pg .bar button+button{border-left:1px solid var(--line)}
+.empty{border:2px dashed var(--line);border-radius:16px;padding:36px 20px;text-align:center;color:var(--mut)}
+.exp{margin-top:28px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+.exp .btns{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.exp .btns button{flex:1 1 180px}
+.note{font-size:14px;color:var(--mut);margin:6px 0 0}
+.note b{color:var(--ink)}
+#ed{position:fixed;inset:0;background:#0a1220;color:#eef2f7;display:flex;flex-direction:column;z-index:10}
+#ed[hidden]{display:none}
+.edtop,.edbot,.tools{display:flex;gap:8px;padding:10px 12px;align-items:center;flex-wrap:wrap}
+.edtop{justify-content:space-between}
+#ed button{background:#16263f;color:#eef2f7;border-color:#2a3b55}
+.seg{display:flex;background:#16263f;border-radius:12px;padding:3px;border:1px solid #2a3b55}
+.seg button{border:0!important;background:none!important;min-height:38px!important;border-radius:9px!important}
+.seg button.on{background:#eef2f7!important;color:#0a1220!important}
+.stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:12px}
+.wrap{position:relative;touch-action:none}
+.wrap canvas{width:100%;height:100%;display:block}
+#ov{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#resC{max-width:100%;max-height:100%;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button.on{background:var(--acc)!important;border-color:var(--acc)!important;color:#fff!important}
+.edbot{justify-content:flex-end;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+.edbot button{flex:1 1 140px}
+.busy{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,18,32,.55);font-weight:600}
+.busy[hidden]{display:none}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:var(--desk);color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;transition:transform .25s;z-index:20;max-width:90vw}
+#toast.on{transform:translateX(-50%) translateY(0)}
+#live{position:fixed;inset:0;background:#000;z-index:15;color:#fff}
+#live[hidden]{display:none}
+#vid{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
+.flash.on{opacity:.8;transition:none}
+.ltop,.lbot{position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px}
+.ltop{top:0;padding-top:max(12px,env(safe-area-inset-top));background:linear-gradient(rgba(0,0,0,.6),transparent)}
+.lbot{bottom:0;padding-bottom:max(20px,env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(0,0,0,.6));justify-content:center;flex-direction:column}
+#live button{background:rgba(22,38,63,.85);color:#fff;border-color:#2a3b55}
+.lcnt{font:700 20px "Inter Tight",Inter,sans-serif}
+.atog{display:flex;align-items:center;gap:8px;font-weight:600;min-height:44px;cursor:pointer}
+.atog input{width:22px;height:22px;accent-color:var(--acc)}
+.lst{font-weight:600;font-size:15px;min-height:22px;text-shadow:0 1px 3px #000}
+#shut{width:78px;height:78px;border-radius:50%!important;background:#fff!important;border:6px solid rgba(255,255,255,.4)!important;background-clip:padding-box!important;padding:0}
+#shut:active{transform:scale(.92)}
+@media(prefers-reduced-motion:reduce){#toast,.flash{transition:none}}
+@media(max-width:600px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="row"><h1>Scanner</h1><div class="count"><b id="cnt">0</b> páginas</div></div>
+  <input id="name" aria-label="Nome do documento" autocomplete="off">
+  <div class="cap">
+    <label class="btn pri shoot" for="cam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="4"/></svg>Fotografar página</label>
+    <label class="btn gal" for="gal">Importar<br>da galeria</label>
+  </div>
+  <input type="file" id="cam" accept="image/*" capture="environment">
+  <input type="file" id="gal" accept="image/*" multiple>
+  <div class="modes" id="capMode" role="radiogroup" aria-label="Modo de captura">
+    <button data-c="review" role="radio">Rever recorte</button>
+    <button data-c="auto" role="radio">Auto-recorte</button>
+    <button data-c="burst" role="radio">Foto rápida</button>
+  </div>
+  <p class="hint" id="capHint"></p>
+</header>
+
+<main>
+  <div class="sec"><h2>Páginas</h2><span>Toque numa página para reajustar</span></div>
+  <div id="grid" class="grid"></div>
+  <div id="empty" class="empty">Ainda sem páginas. Fotografe a primeira — os cantos são detetados automaticamente e pode ajustá-los antes de guardar.</div>
+
+  <section class="exp">
+    <h2 style="font-size:22px">Exportar</h2>
+    <div class="btns">
+      <button id="xPdf" class="pri" disabled>PDF do documento</button>
+      <button id="xZip" disabled>ZIP de imagens (JPG)</button>
+      <button id="xClr" disabled>Novo documento</button>
+    </div>
+    <p class="note" id="dlNote"></p>
+    <p class="note"><b>OneNote no telemóvel:</b> ao guardar o PDF na app Claude abre-se a folha de partilha — escolha OneNote e a secção. <b>No PC:</b> OneNote › Inserir › Impressão de ficheiro (o PDF fica pesquisável no OneNote). Para um repositório, guarde o PDF no OneDrive/SharePoint.</p>
+    <p class="note">As páginas ficam guardadas neste browser até carregar em «Novo documento».</p>
+  </section>
+</main>
+
+<section id="ed" hidden>
+  <div class="edtop">
+    <button id="eCancel">Cancelar</button>
+    <div class="seg"><button data-v="crop" class="on">Recorte</button><button data-v="res">Resultado</button></div>
+  </div>
+  <div class="stage" id="stage">
+    <div class="wrap" id="wrap"><canvas id="edC"></canvas><svg id="ov"></svg></div>
+    <canvas id="resC" hidden></canvas>
+    <div class="busy" id="busy" hidden>A processar…</div>
+  </div>
+  <div class="tools" id="tCrop"><button id="eAuto">Auto-detetar</button><button id="eFull">Página inteira</button></div>
+  <div class="tools" id="tRes" hidden>
+    <div class="chips" id="modes"><button data-m="auto">Cor</button><button data-m="gray">Cinza</button><button data-m="bw">P&amp;B</button><button data-m="orig">Original</button></div>
+    <button id="eRot">Rodar 90°</button>
+  </div>
+  <div class="edbot"><button id="eSave">Guardar</button><button id="eNext" class="pri">Guardar e próxima</button></div>
+</section>
+<section id="live" hidden>
+  <video id="vid" playsinline muted autoplay></video>
+  <div class="flash" id="flash"></div>
+  <div class="ltop"><button id="lDone">Concluir</button><span class="lcnt" id="lCnt">0 fotos</span><label class="atog"><input type="checkbox" id="lAuto"> Auto</label></div>
+  <div class="lbot"><span class="lst" id="lSt"></span><button id="shut" aria-label="Tirar foto"></button></div>
+</section>
+<div id="toast" role="status"></div>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
+const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)};
+let pages=[],ed=null,dl=null,idb=null,view='crop';
+const today=new Date().toISOString().slice(0,10);
+
+/* ---------- armazenamento local ---------- */
+function openDB(){return new Promise(r=>{try{const q=indexedDB.open('scanner',1);q.onupgradeneeded=()=>{q.result.createObjectStore('p',{keyPath:'id'});q.result.createObjectStore('m')};q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}})}
+function tx(store,fn){return new Promise(r=>{if(!idb)return r();try{const t=idb.transaction(store,'readwrite');const res=fn(t.objectStore(store));t.oncomplete=()=>r(res&&res.result);t.onerror=()=>r()}catch(e){r()}})}
+const persist=p=>tx('p',s=>s.put({...p,thumb:p.thumb}));
+const unpersist=id=>tx('p',s=>s.delete(id));
+const saveOrder=()=>{pages.forEach((p,i)=>p.ord=i);return tx('p',s=>pages.forEach(p=>s.put(p)))};
+const saveName=()=>tx('m',s=>s.put($('#name').value,'name'));
+
+/* ---------- imagem ---------- */
+async function loadImg(blob){
+  let b;try{b=await createImageBitmap(blob,{imageOrientation:'from-image'})}catch(e){b=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(blob)})}
+  const k=Math.min(1,2600/Math.max(b.width,b.height)),c=mk(Math.round(b.width*k),Math.round(b.height*k));
+  c.getContext('2d').drawImage(b,0,0,c.width,c.height);return c}
+const toBlob=(c,q=.85)=>new Promise(r=>c.toBlob(r,'image/jpeg',q));
+
+function boxBlur(a,w,h,r){const t=new Float32Array(a.length),n=2*r+1;
+  for(let y=0;y<h;y++){const o=y*w;let s=0;for(let x=-r;x<=r;x++)s+=a[o+Math.min(w-1,Math.max(0,x))];for(let x=0;x<w;x++){t[o+x]=s/n;s+=a[o+Math.min(w-1,x+r+1)]-a[o+Math.max(0,x-r)]}}
+  for(let x=0;x<w;x++){let s=0;for(let y=-r;y<=r;y++)s+=t[Math.min(h-1,Math.max(0,y))*w+x];for(let y=0;y<h;y++){a[y*w+x]=s/n;s+=t[Math.min(h-1,y+r+1)*w+x]-t[Math.max(0,y-r)*w+x]}}}
+function morph(m,w,h,dil){const o=new Uint8Array(m.length);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){let v=dil?0:1;
+    outer:for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const X=x+i,Y=y+j,q=(X<0||Y<0||X>=w||Y>=h)?0:m[Y*w+X];if(dil?q:!q){v=dil?1:0;break outer}}
+    o[y*w+x]=v}return o}
+const area=q=>Math.abs(q.reduce((s,p,i)=>{const n=q[(i+1)%4];return s+p[0]*n[1]-n[0]*p[1]},0))/2;
+function order(q){const cx=q.reduce((s,p)=>s+p[0],0)/4,cy=q.reduce((s,p)=>s+p[1],0)/4;
+  const s=[...q].sort((a,b)=>Math.atan2(a[1]-cy,a[0]-cx)-Math.atan2(b[1]-cy,b[0]-cx));
+  let k=0;s.forEach((p,i)=>{if(p[0]+p[1]<s[k][0]+s[k][1])k=i});return s.slice(k).concat(s.slice(0,k))}
+const fullQuad=(c,m=0)=>[[c.width*m,c.height*m],[c.width*(1-m),c.height*m],[c.width*(1-m),c.height*(1-m)],[c.width*m,c.height*(1-m)]];
+
+/* deteção do documento: papel claro e pouco saturado vs. fundo */
+function detect(src){
+  const sc=360/Math.max(src.width,src.height),w=Math.round(src.width*sc),h=Math.round(src.height*sc),N=w*h;
+  const c=mk(w,h),x=c.getContext('2d');x.drawImage(src,0,0,w,h);
+  const d=x.getImageData(0,0,w,h).data,g=new Float32Array(N);
+  for(let i=0;i<N;i++){const r=d[i*4],gg=d[i*4+1],b=d[i*4+2];g[i]=.299*r+.587*gg+.114*b-(Math.max(r,gg,b)-Math.min(r,gg,b))*.6}
+  boxBlur(g,w,h,2);
+  const hist=new Float64Array(256);let sum=0;for(let i=0;i<N;i++)hist[Math.max(0,Math.min(255,Math.round(g[i])))]++;
+  for(let t=0;t<256;t++)sum+=t*hist[t];
+  let sB=0,wB=0,bv=0,thr=128;
+  for(let t=0;t<256;t++){wB+=hist[t];if(!wB)continue;const wF=N-wB;if(!wF)break;sB+=t*hist[t];const v=wB*wF*(sB/wB-(sum-sB)/wF)**2;if(v>bv){bv=v;thr=t}}
+  let m=new Uint8Array(N);for(let i=0;i<N;i++)m[i]=g[i]>thr?1:0;
+  m=morph(morph(m,w,h,0),w,h,0);m=morph(morph(m,w,h,1),w,h,1);
+  const lab=new Int32Array(N),st=new Int32Array(N),ctr=(h>>1)*w+(w>>1);let best=null,bs=0,id=0;
+  for(let s0=0;s0<N;s0++){if(!m[s0]||lab[s0])continue;id++;let sp=0,ar=0,bord=0;st[sp++]=s0;lab[s0]=id;
+    const lo=[1e9,1e9,1e9,1e9],hi=[-1e9,-1e9,-1e9,-1e9],loP=[],hiP=[];
+    while(sp){const p=st[--sp],px=p%w,py=(p/w)|0;ar++;if(!px||!py||px===w-1||py===h-1)bord++;
+      const f=[px+py,px-py,px,py];for(let k=0;k<4;k++){if(f[k]<lo[k]){lo[k]=f[k];loP[k]=[px,py]}if(f[k]>hi[k]){hi[k]=f[k];hiP[k]=[px,py]}}
+      if(px>0&&m[p-1]&&!lab[p-1]){lab[p-1]=id;st[sp++]=p-1}if(px<w-1&&m[p+1]&&!lab[p+1]){lab[p+1]=id;st[sp++]=p+1}
+      if(py>0&&m[p-w]&&!lab[p-w]){lab[p-w]=id;st[sp++]=p-w}if(py<h-1&&m[p+w]&&!lab[p+w]){lab[p+w]=id;st[sp++]=p+w}}
+    if(ar<.1*N||ar>.97*N)continue;
+    const score=ar*(lab[ctr]===id?2:1)/(1+4*bord/(2*(w+h)));
+    if(score>bs){bs=score;const qa=[loP[0],hiP[1],hiP[0],loP[1]],qb=order([loP[2],loP[3],hiP[2],hiP[3]]);best=area(qa)>=area(qb)?qa:qb}}
+  if(!best||area(best)<.1*N)return fullQuad(src,.04);
+  return order(best.map(p=>[(p[0]+.5)/sc,(p[1]+.5)/sc]))}
+
+/* correção de perspetiva */
+function homog(from,to){const A=[];
+  for(let i=0;i<4;i++){const[u,v]=from[i],[x,y]=to[i];A.push([u,v,1,0,0,0,-u*x,-v*x,x],[0,0,0,u,v,1,-u*y,-v*y,y])}
+  for(let c=0;c<8;c++){let p=c;for(let r=c+1;r<8;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;[A[c],A[p]]=[A[p],A[c]];
+    for(let r=0;r<8;r++)if(r!==c){const f=A[r][c]/A[c][c];for(let k=c;k<9;k++)A[r][k]-=f*A[c][k]}}
+  return A.map((r,i)=>r[8]/r[i])}
+const srcData=new WeakMap();
+function warp(src,q){
+  const D=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);let W=(D(q[0],q[1])+D(q[3],q[2]))/2,H=(D(q[0],q[3])+D(q[1],q[2]))/2;
+  const k=Math.min(1,2200/Math.max(W,H));W=Math.max(8,Math.round(W*k));H=Math.max(8,Math.round(H*k));
+  const m=homog([[0,0],[W,0],[W,H],[0,H]],q),sw=src.width,sh=src.height;
+  let sd=srcData.get(src);if(!sd){sd=src.getContext('2d').getImageData(0,0,sw,sh).data;srcData.set(src,sd)}
+  const out=mk(W,H),ox=out.getContext('2d'),od=ox.createImageData(W,H),o=od.data;
+  for(let y=0;y<H;y++){const v=y+.5;for(let x=0;x<W;x++){const u=x+.5,z=m[6]*u+m[7]*v+1,X=(m[0]*u+m[1]*v+m[2])/z-.5,Y=(m[3]*u+m[4]*v+m[5])/z-.5;
+    let x0=Math.floor(X),y0=Math.floor(Y);const fx=Math.min(1,Math.max(0,X-x0)),fy=Math.min(1,Math.max(0,Y-y0));
+    x0=Math.max(0,Math.min(sw-2,x0));y0=Math.max(0,Math.min(sh-2,y0));const i=(y0*sw+x0)*4,j=i+sw*4,p=(y*W+x)*4;
+    for(let c=0;c<3;c++){const a=sd[i+c]+(sd[i+4+c]-sd[i+c])*fx,b=sd[j+c]+(sd[j+4+c]-sd[j+c])*fx;o[p+c]=a+(b-a)*fy}o[p+3]=255}}
+  ox.putImageData(od,0,0);return out}
+function rotate(c,r){if(!r)return c;const o=r%2?mk(c.height,c.width):mk(c.width,c.height),x=o.getContext('2d');
+  x.translate(o.width/2,o.height/2);x.rotate(r*Math.PI/2);x.drawImage(c,-c.width/2,-c.height/2);return o}
+
+/* realce: remove sombras dividindo pela iluminação de fundo */
+function enhance(c,mode){if(mode==='orig')return c;
+  const W=c.width,H=c.height,x=c.getContext('2d'),id=x.getImageData(0,0,W,H),d=id.data;
+  const sw=Math.max(4,Math.round(W/16)),sh=Math.max(4,Math.round(H/16)),s=mk(sw,sh),sx=s.getContext('2d');
+  sx.drawImage(c,0,0,sw,sh);const sd=sx.getImageData(0,0,sw,sh);
+  for(let k=0;k<3;k++){const a=new Float32Array(sw*sh),b=new Float32Array(sw*sh);for(let i=0;i<a.length;i++)a[i]=sd.data[i*4+k];
+    for(let y=0;y<sh;y++)for(let xx=0;xx<sw;xx++){let mx=0;for(let j=-2;j<=2;j++)for(let i=-2;i<=2;i++){const X=Math.min(sw-1,Math.max(0,xx+i)),Y=Math.min(sh-1,Math.max(0,y+j));mx=Math.max(mx,a[Y*sw+X])}b[y*sw+xx]=mx}
+    boxBlur(b,sw,sh,2);for(let i=0;i<b.length;i++)sd.data[i*4+k]=b[i]}
+  sx.putImageData(sd,0,0);const bg=mk(W,H),bx=bg.getContext('2d');bx.imageSmoothingQuality='high';bx.drawImage(s,0,0,W,H);
+  const bd=bx.getImageData(0,0,W,H).data;
+  for(let p=0;p<d.length;p+=4){
+    if(mode==='auto'){for(let k=0;k<3;k++)d[p+k]=(d[p+k]/Math.max(30,bd[p+k])*255-25)*1.12}
+    else{const l=(.299*d[p]+.587*d[p+1]+.114*d[p+2])/Math.max(30,.299*bd[p]+.587*bd[p+1]+.114*bd[p+2])*255;
+      const v=mode==='bw'?255/(1+Math.exp(-(l-190)/12)):(l-30)*1.15;d[p]=d[p+1]=d[p+2]=v}}
+  x.putImageData(id,0,0);return c}
+const isFull=(src,q)=>q.every((p,i)=>{const f=fullQuad(src)[i];return Math.abs(p[0]-f[0])<1&&Math.abs(p[1]-f[1])<1});
+function render(src,p){
+  let c;if(isFull(src,p.q)){const k=Math.min(1,2200/Math.max(src.width,src.height));c=mk(Math.round(src.width*k),Math.round(src.height*k));c.getContext('2d').drawImage(src,0,0,c.width,c.height)}
+  else c=warp(src,p.q);
+  return enhance(rotate(c,p.rot),p.mode)}
+
+async function finish(src,p,out){
+  out=out||render(src,p);p.out=await toBlob(out);p.w=out.width;p.h=out.height;
+  const t=mk(Math.round(240*out.width/Math.max(out.width,out.height)),Math.round(240*out.height/Math.max(out.width,out.height)));
+  t.getContext('2d').drawImage(out,0,0,t.width,t.height);p.thumb=t.toDataURL('image/jpeg',.7);
+  const i=pages.findIndex(x=>x.id===p.id);if(i<0){p.ord=pages.length;pages.push(p)}else pages[i]=p;
+  await persist(p);draw()}
+
+/* ---------- grelha ---------- */
+function draw(){
+  $('#cnt').textContent=pages.length;$('#empty').hidden=!!pages.length;
+  $('#grid').innerHTML=pages.map((p,i)=>`<div class="pg"><div class="im" data-e="${i}"><span class="n">${i+1}</span><img src="${p.thumb}" alt="Página ${i+1}"></div>
+   <div class="bar"><button data-l="${i}" aria-label="Mover para trás" ${i?'':'disabled'}>‹</button><button data-d="${i}" aria-label="Apagar">×</button><button data-r="${i}" aria-label="Mover para a frente" ${i<pages.length-1?'':'disabled'}>›</button></div></div>`).join('');
+  ['#xPdf','#xZip','#xClr'].forEach(s=>$(s).disabled=!pages.length);
+}
+$('#grid').addEventListener('click',async e=>{const b=e.target.closest('[data-e],[data-l],[data-r],[data-d]');if(!b)return;
+  if(b.dataset.e){const p=pages[+b.dataset.e];openEditor(await loadImg(p.src),{...p});return}
+  if(b.dataset.d){const i=+b.dataset.d;if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Apagar?';b.style.fontSize='14px';setTimeout(()=>draw(),2500);return}
+    const [p]=pages.splice(i,1);await unpersist(p.id);await saveOrder();draw();return}
+  const i=+(b.dataset.l??b.dataset.r),j=b.dataset.l!=null?i-1:i+1;[pages[i],pages[j]]=[pages[j],pages[i]];await saveOrder();draw()});
+
+/* ---------- editor ---------- */
+const edC=$('#edC'),ov=$('#ov'),wrap=$('#wrap');
+function openEditor(src,p){ed={src,p,drag:-1,res:null};view='crop';
+  edC.width=src.width;edC.height=src.height;edC.getContext('2d').drawImage(src,0,0);
+  ov.setAttribute('viewBox',`0 0 ${src.width} ${src.height}`);$('#ed').hidden=false;document.body.style.overflow='hidden';setView('crop')}
+function closeEditor(){$('#ed').hidden=true;document.body.style.overflow='';ed=null}
+function fit(){if(!ed||view!=='crop')return;const st=$('#stage'),W=st.clientWidth-24,H=st.clientHeight-24,s=Math.min(W/ed.src.width,H/ed.src.height);
+  wrap.style.width=ed.src.width*s+'px';wrap.style.height=ed.src.height*s+'px';drawOv()}
+function drawOv(){const q=ed.p.q,W=ed.src.width,H=ed.src.height,r=22*W/(wrap.clientWidth||W),pts=q.map(p=>p.join(',')).join(' ');
+  ov.innerHTML=`<path d="M0 0H${W}V${H}H0Z M${q.map(p=>p.join(' ')).join(' L')}Z" fill="rgba(5,10,20,.55)" fill-rule="evenodd"/>
+   <polygon points="${pts}" fill="none" stroke="#ff6f59" stroke-width="${r/6}"/>`+
+   q.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="${r}" fill="rgba(255,111,89,.25)" stroke="#fff" stroke-width="${r/7}" data-h="${i}"/>`).join('')}
+const pt=e=>{const b=wrap.getBoundingClientRect();return[Math.max(0,Math.min(ed.src.width,(e.clientX-b.left)*ed.src.width/b.width)),Math.max(0,Math.min(ed.src.height,(e.clientY-b.top)*ed.src.height/b.height))]};
+wrap.addEventListener('pointerdown',e=>{if(!ed)return;const p=pt(e);let k=-1,bd=1e18;ed.p.q.forEach((c,i)=>{const d=(c[0]-p[0])**2+(c[1]-p[1])**2;if(d<bd){bd=d;k=i}});
+  const lim=60*ed.src.width/wrap.clientWidth;if(bd>lim*lim)return;ed.drag=k;wrap.setPointerCapture(e.pointerId);e.preventDefault()});
+wrap.addEventListener('pointermove',e=>{if(!ed||ed.drag<0)return;ed.p.q[ed.drag]=pt(e);ed.res=null;drawOv()});
+wrap.addEventListener('pointerup',()=>{if(ed)ed.drag=-1});
+wrap.addEventListener('pointercancel',()=>{if(ed)ed.drag=-1});
+addEventListener('resize',fit);
+
+async function setView(v){view=v;document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  $('#tCrop').hidden=v!=='crop';$('#tRes').hidden=v!=='res';wrap.hidden=v!=='crop';$('#resC').hidden=v!=='res';
+  document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b.dataset.m===ed.p.mode));
+  if(v==='crop')requestAnimationFrame(fit);else await preview()}
+async function preview(){$('#busy').hidden=false;await new Promise(r=>setTimeout(r,30));
+  ed.res=render(ed.src,ed.p);const c=$('#resC');c.width=ed.res.width;c.height=ed.res.height;c.getContext('2d').drawImage(ed.res,0,0);$('#busy').hidden=true}
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>setView(b.dataset.v));
+$('#modes').onclick=e=>{const b=e.target.closest('button');if(!b)return;ed.p.mode=b.dataset.m;ed.res=null;try{localStorage.setItem('scan-mode',ed.p.mode)}catch(_){}setView('res')};
+$('#eRot').onclick=()=>{ed.p.rot=(ed.p.rot+1)%4;ed.res=null;setView('res')};
+$('#eAuto').onclick=()=>{ed.p.q=detect(ed.src);ed.res=null;drawOv()};
+$('#eFull').onclick=()=>{ed.p.q=fullQuad(ed.src);ed.res=null;drawOv()};
+$('#eCancel').onclick=closeEditor;
+async function saveEd(){if(!ed)return;const {src,p,res}=ed;closeEditor();toast('A guardar…');await finish(src,p,res);toast(`Página ${pages.findIndex(x=>x.id===p.id)+1} guardada`)}
+$('#eSave').onclick=saveEd;
+$('#eNext').onclick=()=>{$('#cam').click();saveEd()};
+
+/* ---------- captura ---------- */
+const defMode=()=>{try{return localStorage.getItem('scan-mode')||'auto'}catch(_){return 'auto'}};
+let cap='review';
+const HINTS={review:'Deteta os cantos e abre o ajuste antes de guardar.',auto:'Deteta os cantos, corrige e guarda logo — sem rever.',burst:'Câmara contínua: fica aberta e dispara sozinha quando vira a página e a imagem estabiliza. Sem recorte.'};
+function setCap(c){cap=c;document.querySelectorAll('#capMode button').forEach(b=>b.setAttribute('aria-checked',b.dataset.c===c));
+  $('#capHint').textContent=HINTS[c];$('.shoot').lastChild.textContent=c==='burst'?'Foto rápida':'Fotografar página';
+  try{localStorage.setItem('scan-cap',c)}catch(_){}}
+$('#capMode').onclick=e=>{const b=e.target.closest('button');if(b)setCap(b.dataset.c)};
+async function newPage(file,how){return pageFrom(await loadImg(file),how)}
+async function pageFrom(src,how){
+  const burst=how==='burst',quiet=!$('#live').hidden,k=2600/Math.max(src.width,src.height);
+  if(k<1){const c=mk(Math.round(src.width*k),Math.round(src.height*k));c.getContext('2d').drawImage(src,0,0,c.width,c.height);src=c}
+    p={id:Date.now()+'-'+Math.random().toString(36).slice(2,7),q:burst?fullQuad(src):detect(src),mode:burst?'orig':defMode(),rot:0};
+  p.src=await toBlob(src,.9);
+  if(how==='review')openEditor(src,p);else{await finish(src,p);if(!quiet&&$('#live').hidden)toast(`Página ${pages.length} guardada`)}}
+
+/* ---------- câmara contínua ---------- */
+let stream=null,autoT=0,liveN=0,liveBlocked=false,prev=null,lastShot=null,armed=true,stillSince=0,lastAt=0;
+const sigC=mk(64,48),sigX=sigC.getContext('2d',{willReadFrequently:true}),vid=$('#vid');
+async function openLive(){
+  if(liveBlocked||!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia))return false;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}}})}
+  catch(e){liveBlocked=true;return false}
+  vid.srcObject=stream;$('#live').hidden=false;document.body.style.overflow='hidden';
+  try{await vid.play()}catch(_){}
+  liveN=0;prev=lastShot=null;armed=true;stillSince=performance.now();updLive();clearTimeout(autoT);tick();return true}
+function closeLive(){clearTimeout(autoT);if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;vid.srcObject=null;$('#live').hidden=true;document.body.style.overflow='';
+  if(liveN)queue.then(()=>toast(`${liveN} fotos guardadas`))}
+function updLive(){$('#lCnt').textContent=`${liveN} foto${liveN===1?'':'s'}`}
+function sig(){sigX.drawImage(vid,0,0,64,48);const d=sigX.getImageData(0,0,64,48).data,g=new Uint8Array(3072);
+  for(let i=0;i<3072;i++)g[i]=(d[i*4]+2*d[i*4+1]+d[i*4+2])>>2;return g}
+const diff=(a,b)=>{let s=0;for(let i=0;i<a.length;i++)s+=Math.abs(a[i]-b[i]);return s/a.length};
+function grab(){if(!vid.videoWidth)return;
+  const c=mk(vid.videoWidth,vid.videoHeight);c.getContext('2d').drawImage(vid,0,0);
+  const f=$('#flash');f.classList.add('on');requestAnimationFrame(()=>requestAnimationFrame(()=>f.classList.remove('on')));
+  try{navigator.vibrate&&navigator.vibrate(30)}catch(_){}
+  liveN++;updLive();lastShot=sig();armed=false;lastAt=performance.now();
+  const how=cap==='burst'?'burst':'auto';
+  queue=queue.then(()=>pageFrom(c,how)).catch(()=>toast('Falhou uma foto'))}
+/* auto: dispara quando houve mudança (página virada) e a imagem fica parada ~0,9 s */
+function tick(){if(!stream)return;
+  if($('#lAuto').checked&&vid.videoWidth){const g=sig(),now=performance.now(),motion=prev?diff(g,prev):99;prev=g;
+    if(motion>4)stillSince=now;
+    if(!armed&&(motion>9||(lastShot&&diff(g,lastShot)>12)))armed=true;
+    const still=now-stillSince;
+    if(armed&&still>900&&now-lastAt>1200)grab();
+    $('#lSt').textContent=!armed?'Vire a página…':still>300?'A focar…':'À espera que estabilize…'}
+  else $('#lSt').textContent='';
+  autoT=setTimeout(tick,120)}
+$('#shut').onclick=grab;$('#lDone').onclick=closeLive;
+$('#lAuto').onchange=()=>{try{localStorage.setItem('scan-auto',$('#lAuto').checked?'1':'0')}catch(_){}};
+$('.shoot').addEventListener('click',e=>{if(cap!=='burst'||liveBlocked)return;e.preventDefault();
+  openLive().then(ok=>{if(!ok)toast('A câmara contínua não está disponível nesta vista — toque de novo para usar a câmara do sistema')})});
+let queue=Promise.resolve();
+function onFiles(e){const fs=[...e.target.files];e.target.value='';if(!fs.length)return;
+  const how=cap==='review'&&fs.length>1?'auto':cap;if(fs.length>1)toast(`A processar ${fs.length} imagens…`);
+  /* fila: em foto rápida pode disparar a próxima enquanto a anterior ainda grava */
+  for(const f of fs)queue=queue.then(()=>newPage(f,how)).catch(()=>toast('Não foi possível ler a imagem'))}
+$('#cam').onchange=onFiles;$('#gal').onchange=onFiles;
+$('#name').oninput=saveName;
+
+/* ---------- exportação ---------- */
+async function bytes(b){return new Uint8Array(await b.arrayBuffer())}
+async function buildPDF(){const enc=new TextEncoder(),parts=[],offs=[];let len=0;
+  const push=b=>{if(typeof b==='string')b=enc.encode(b);parts.push(b);len+=b.length};
+  const obj=(id,s)=>{offs[id]=len;push(`${id} 0 obj\n${s}\nendobj\n`)};
+  push(new Uint8Array([37,80,68,70,45,49,46,52,10,37,226,227,207,211,10]));
+  const n=pages.length,kids=pages.map((_,i)=>`${3+3*i} 0 R`).join(' ');
+  obj(1,'<</Type/Catalog/Pages 2 0 R>>');obj(2,`<</Type/Pages/Kids[${kids}]/Count ${n}>>`);
+  for(let i=0;i<n;i++){const p=pages[i],W=595.28,H=+(W*p.h/p.w).toFixed(2),img=await bytes(p.out),b=3+3*i;
+    obj(b,`<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${W} ${H}]/Resources<</XObject<</Im0 ${b+1} 0 R>>>>/Contents ${b+2} 0 R>>`);
+    offs[b+1]=len;push(`${b+1} 0 obj\n<</Type/XObject/Subtype/Image/Width ${p.w}/Height ${p.h}/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ${img.length}>>\nstream\n`);push(img);push('\nendstream\nendobj\n');
+    const cs=`q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;obj(b+2,`<</Length ${cs.length}>>\nstream\n${cs}\nendstream`)}
+  const N=3+3*n,x=len;let t=`xref\n0 ${N}\n0000000000 65535 f \n`;for(let i=1;i<N;i++)t+=String(offs[i]).padStart(10,'0')+' 00000 n \n';
+  push(t+`trailer\n<</Size ${N}/Root 1 0 R>>\nstartxref\n${x}\n%%EOF`);return new Blob(parts,{type:'application/pdf'})}
+const crcT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc=d=>{let c=0xFFFFFFFF;for(let i=0;i<d.length;i++)c=crcT[(c^d[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+async function buildZip(base){const enc=new TextEncoder(),parts=[],cen=[];let off=0;
+  for(let i=0;i<pages.length;i++){const d=await bytes(pages[i].out),nm=enc.encode(`${base}_${String(i+1).padStart(3,'0')}.jpg`),c=crc(d);
+    const h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint32(14,c,true);h.setUint32(18,d.length,true);h.setUint32(22,d.length,true);h.setUint16(26,nm.length,true);
+    parts.push(h,nm,d);const ce=new DataView(new ArrayBuffer(46));ce.setUint32(0,0x02014b50,true);ce.setUint16(4,20,true);ce.setUint16(6,20,true);ce.setUint32(16,c,true);ce.setUint32(20,d.length,true);ce.setUint32(24,d.length,true);ce.setUint16(28,nm.length,true);ce.setUint32(42,off,true);
+    cen.push(ce,nm);off+=30+nm.length+d.length}
+  const cs=cen.reduce((s,x)=>s+x.byteLength,0),e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,pages.length,true);e.setUint16(10,pages.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,e],{type:'application/zip'})}
+const fname=()=>($('#name').value.trim()||`Documento ${today}`).replace(/[\\/:*?"<>|]+/g,'-');
+async function save(build,ext,btn){btn.disabled=true;const t=btn.textContent;btn.textContent='A preparar…';
+  try{const blob=await build(),fn=`${fname()}.${ext}`;
+    if(dl){await dl.save({filename:fn,data:blob})}
+    else{const file=new File([blob],fn,{type:blob.type});
+      if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:fname()});
+      else{const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}}
+    toast('Ficheiro entregue')}
+  catch(e){toast(e&&(e.code==='declined'||e.name==='AbortError')?'Cancelado':'Não foi possível guardar o ficheiro')}
+  btn.textContent=t;btn.disabled=false}
+$('#xPdf').onclick=e=>save(buildPDF,'pdf',e.currentTarget);
+$('#xZip').onclick=e=>save(()=>buildZip(fname().replace(/\s+/g,'_')),'zip',e.currentTarget);
+$('#xClr').onclick=async e=>{const b=e.currentTarget;if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Confirmar: apagar tudo?';setTimeout(()=>{b.dataset.c='';b.textContent='Novo documento'},3000);return}
+  b.dataset.c='';b.textContent='Novo documento';pages=[];await tx('p',s=>s.clear());$('#name').value=`Documento ${today}`;saveName();draw();toast('Documento limpo')};
+
+/* ---------- arranque ---------- */
+(async()=>{
+  let c0='review';try{c0=localStorage.getItem('scan-cap')||(localStorage.getItem('scan-fast')==='1'?'auto':'review')}catch(_){}
+  setCap(HINTS[c0]?c0:'review');
+  try{$('#lAuto').checked=localStorage.getItem('scan-auto')!=='0'}catch(_){$('#lAuto').checked=true}
+  $('#name').value=`Documento ${today}`;
+  idb=await openDB();
+  if(idb){const nm=await tx('m',s=>s.get('name'));if(nm)$('#name').value=nm;
+    const all=await tx('p',s=>s.getAll());if(all&&all.length)pages=all.sort((a,b)=>a.ord-b.ord)}
+  draw();
+  try{dl=window.claude&&claude.use?await claude.use('downloads'):null}catch(_){dl=null}
+  draw()})();
+}
+</script>
+</body>
+</html>
